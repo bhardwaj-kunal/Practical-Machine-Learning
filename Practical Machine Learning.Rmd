@@ -1,0 +1,117 @@
+---
+title: "Practical Machine Learning Project"
+author: "Kunal Bhardwaj"
+date: "2022-10-10"
+output: html_document
+---
+
+
+## Introduction
+One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, my goal will be to use data from accelerometers on the belt, forearm, arm, and dumbbell of 6 participants.
+
+## Objective
+The goal of this project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. I will also use my prediction model to predict 20 different test cases.
+
+I will train four models, namely - Decision Tree, Support Vector Machine, Gradient Boosted Trees, and Random Forest, using k-folds cross-validation on the training set. I will then predict, using a validation set randomly selected from the training csv data, to obtain the accuracy and out-of-sample error rate.
+
+
+##Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+##Data
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+
+#Loading the prerequisite libraries
+```{r}
+library(rpart)
+library(rpart.plot)
+library(lattice)
+library(ggplot2)
+library(caret)
+library(kernlab)
+library(rattle)
+library(corrplot)
+set.seed(1234)
+
+TrainSet <- read.csv("D:dataset/pml-training.csv")
+TestSet <- read.csv("D:dataset/pml-testing.csv")
+
+dim(TrainSet)
+dim(TestSet)
+
+
+#To remove Null columns named as 'NA'
+TrainSet <- TrainSet[,colMeans(is.na(TrainSet)) < .9]
+#Meta data removal to decrease size
+TrainSet <- TrainSet[,-c(1:7)] 
+
+ZeroVar <- nearZeroVar(TrainSet)
+TrainSet <- TrainSet[,-ZeroVar]
+dim(TrainSet)
+
+#Splitting the training set into validation and training set
+FullTrainSet <- createDataPartition(y=TrainSet$classe, p=0.7, list=F)
+train <- TrainSet[FullTrainSet,]
+valid <- TrainSet[-FullTrainSet,]
+
+#Setting up the control to train by using 3-fold cross validation
+control <- trainControl(method="cv", number=3, verboseIter=F)
+
+
+
+#Decision Tree
+Model_Trees <- train(classe~., data=train, method="rpart", trControl = control, tuneLength = 5)
+fancyRpartPlot(Model_Trees$finalModel)
+Prediction_Trees <- predict(Model_Trees, valid)
+ConfMa_Trees <- confusionMatrix(Prediction_Trees, factor(valid$classe))
+ConfMa_Trees
+
+#Support Vector Machine
+Model_SVM <- train(classe~., data=train, method="svmLinear", trControl = control, tuneLength = 5, verbose = F)
+Prediction_SVM <- predict(Model_SVM, valid)
+ConfMa_SVM <- confusionMatrix(Prediction_SVM, factor(valid$classe))
+ConfMa_SVM
+
+#Gradient Boosted Trees
+Model_GBM <- train(classe~., data=train, method="gbm", trControl = control, tuneLength = 5, verbose = F)
+Prediction_GBM <- predict(Model_GBM, valid)
+ConfMa_GBM <- confusionMatrix(Prediction_GBM, factor(valid$classe))
+ConfMa_GBM
+
+#Random Forest
+Model_RF <- train(classe~., data=train, method="rf", trControl = control, tuneLength = 5)
+ConfMa_RF <- predict(Model_RF, valid)
+ConfMa_RF <- confusionMatrix(Pred_RF, factor(valid$classe))
+ConfMa_RF
+
+
+
+#Running the test set to predict the outcome for 20 cases using Random Forest model
+pred <- predict(Model_RF, TestSet)
+print(pred)
+
+
+#Correlation Matrix of variables in the Training Set
+corrPlot <- cor(train[, -length(names(train))])
+corrplot(corrPlot, method="color")
+
+#Decision Tree Visualization
+Tree_Model <- rpart(classe ~ ., data=train, method="class")
+prp(Tree_Model)
+
+# Plotting models of Decision Tree, Random Forest and Gradient Boosted Trees
+plot(Model_Trees)
+plot(Model_RF)
+plot(Model_GBM)
+```
